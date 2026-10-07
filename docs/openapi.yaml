@@ -1,0 +1,739 @@
+openapi: 3.0.3
+info:
+  title: EventFlow API
+  description: >
+    Production-ready RESTful Event Ticketing Platform API.
+    Features concurrency-safe ticket reservations, RBAC, JWT rotation,
+    cancellation windows, caching, idempotency, and comprehensive filtering.
+  version: 1.0.0
+  contact:
+    name: EventFlow Engineering Team
+    email: support@eventflow.dev
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local Development Server
+  - url: http://localhost:3000
+    description: Root Server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enter your JWT access token (Bearer <token>)
+
+  schemas:
+    Role:
+      type: string
+      enum: [ATTENDEE, ORGANIZER]
+
+    EventStatus:
+      type: string
+      enum: [UPCOMING, LIVE, COMPLETED, CANCELLED]
+
+    BookingStatus:
+      type: string
+      enum: [CONFIRMED, CANCELLED, REFUNDED]
+
+    ErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+          example: quantity
+        message:
+          type: string
+          example: Quantity must be between 1 and 5
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              example: Invalid request data
+            details:
+              type: array
+              items:
+                $ref: '#/components/schemas/ErrorDetail'
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 42
+        totalPages:
+          type: integer
+          example: 5
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          example: "Alex Johnson"
+        email:
+          type: string
+          example: "alex@eventflow.dev"
+        role:
+          $ref: '#/components/schemas/Role'
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-07T10:00:00.000Z"
+
+    AuthTokens:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    AuthSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/UserResponse'
+            tokens:
+              $ref: '#/components/schemas/AuthTokens'
+
+    RegisterRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          example: "Sarah Connor"
+        email:
+          type: string
+          format: email
+          example: "sarah@eventflow.dev"
+        password:
+          type: string
+          format: password
+          example: "StrongPassword123!"
+        role:
+          $ref: '#/components/schemas/Role'
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "organizer1@eventflow.dev"
+        password:
+          type: string
+          format: password
+          example: "Password123!"
+
+    RefreshTokenRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "a8098c1a-f86e-11da-bd1a-00112444be1e"
+        organizerId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        title:
+          type: string
+          example: "Global Tech Summit 2026"
+        description:
+          type: string
+          example: "The premier international summit for AI and backend systems engineering."
+        category:
+          type: string
+          example: "Technology"
+        city:
+          type: string
+          example: "Bengaluru"
+        venue:
+          type: string
+          example: "KTPO Convention Centre, Whitefield"
+        startTime:
+          type: string
+          format: date-time
+          example: "2026-11-15T09:00:00.000Z"
+        endTime:
+          type: string
+          format: date-time
+          example: "2026-11-15T18:00:00.000Z"
+        capacity:
+          type: integer
+          example: 500
+        remainingCapacity:
+          type: integer
+          example: 480
+        price:
+          type: number
+          example: 2499.00
+        status:
+          $ref: '#/components/schemas/EventStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateEventRequest:
+      type: object
+      required: [title, description, category, city, venue, startTime, endTime, capacity, price]
+      properties:
+        title:
+          type: string
+          example: "NextGen Cloud & Backend Conference"
+        description:
+          type: string
+          example: "Deep-dive sessions into distributed systems, concurrency, and high-performance databases."
+        category:
+          type: string
+          example: "Technology"
+        city:
+          type: string
+          example: "Chennai"
+        venue:
+          type: string
+          example: "Chennai Trade Centre, Nandambakkam"
+        startTime:
+          type: string
+          format: date-time
+          example: "2026-12-01T09:30:00.000Z"
+        endTime:
+          type: string
+          format: date-time
+          example: "2026-12-01T17:30:00.000Z"
+        capacity:
+          type: integer
+          example: 300
+        price:
+          type: number
+          example: 1499.00
+
+    UpdateEventRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Updated Conference Title"
+        description:
+          type: string
+          example: "Updated detailed description."
+        category:
+          type: string
+          example: "Technology"
+        city:
+          type: string
+          example: "Chennai"
+        venue:
+          type: string
+          example: "Hall 2, Trade Centre"
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+          example: 350
+        price:
+          type: number
+          example: 1599.00
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+        userId:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          example: 2
+        totalAmount:
+          type: number
+          example: 2998.00
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateBookingRequest:
+      type: object
+      required: [quantity]
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 2
+
+    EventStatsResponse:
+      type: object
+      properties:
+        ticketsSold:
+          type: integer
+          example: 87
+        remainingCapacity:
+          type: integer
+          example: 13
+        totalCapacity:
+          type: integer
+          example: 100
+        revenue:
+          type: number
+          example: 43500.00
+        bookingCount:
+          type: integer
+          example: 42
+        confirmedBookings:
+          type: integer
+          example: 40
+        cancelledBookings:
+          type: integer
+          example: 2
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns health and database connectivity status
+      responses:
+        '200':
+          description: System healthy and database connected
+        '503':
+          description: System degraded or database disconnected
+
+  /auth/register:
+    post:
+      summary: Register a new user
+      description: Register as either an ATTENDEE or ORGANIZER
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email already registered
+
+  /auth/login:
+    post:
+      summary: User login
+      description: Authenticates user credentials and returns access & refresh tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '401':
+          description: Invalid email or password
+
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+      description: Rotates refresh token and generates a new access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Tokens refreshed successfully
+        '401':
+          description: Invalid or revoked refresh token
+
+  /auth/logout:
+    post:
+      security:
+        - BearerAuth: []
+      summary: User logout
+      description: Revokes user refresh token
+      responses:
+        '204':
+          description: Logged out successfully
+
+  /auth/me:
+    get:
+      security:
+        - BearerAuth: []
+      summary: Get current authenticated user profile
+      responses:
+        '200':
+          description: Profile retrieved
+
+  /events:
+    get:
+      summary: Browse and filter events
+      description: Retrieve paginated events with optional filters (category, city, price, dates, search)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: minPrice
+          in: query
+          schema:
+            type: number
+        - name: maxPrice
+          in: query
+          schema:
+            type: number
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/EventStatus'
+        - name: availableOnly
+          in: query
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [startTime, price, createdAt, capacity]
+            default: startTime
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        '200':
+          description: Paginated events returned
+
+    post:
+      security:
+        - BearerAuth: []
+      summary: Create event (Organizer only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201':
+          description: Event created successfully
+        '403':
+          description: Forbidden - requires ORGANIZER role
+
+  /events/{id}:
+    get:
+      summary: Get event details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Event details returned
+        '404':
+          description: Event not found
+
+    patch:
+      security:
+        - BearerAuth: []
+      summary: Update event (Organizer only - Owner)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEventRequest'
+      responses:
+        '200':
+          description: Event updated successfully
+        '403':
+          description: Forbidden - Not event owner
+
+    delete:
+      security:
+        - BearerAuth: []
+      summary: Delete event (Organizer only - Owner)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Event deleted
+        '400':
+          description: Cannot delete event with active bookings
+        '403':
+          description: Forbidden - Not event owner
+
+  /events/{id}/cancel:
+    post:
+      security:
+        - BearerAuth: []
+      summary: Cancel event (Organizer only - Owner)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Event cancelled and confirmed bookings refunded
+        '403':
+          description: Forbidden - Not event owner
+
+  /events/{id}/bookings:
+    get:
+      security:
+        - BearerAuth: []
+      summary: View event bookings (Organizer only - Owner)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of bookings for the event
+        '403':
+          description: Forbidden - Not event owner
+
+    post:
+      security:
+        - BearerAuth: []
+      summary: Book tickets for an event (Concurrency-Safe)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Optional idempotency key to protect against duplicate payment/booking retries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+      responses:
+        '201':
+          description: Booking confirmed successfully
+        '400':
+          description: Event already started or invalid quantity
+        '409':
+          description: Insufficient capacity or event cancelled (Conflict)
+        '429':
+          description: Rate limit exceeded
+
+  /events/{id}/stats:
+    get:
+      security:
+        - BearerAuth: []
+      summary: View event statistics (Organizer only - Owner)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Event statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventStatsResponse'
+        '403':
+          description: Forbidden - Not event owner
+
+  /bookings:
+    get:
+      security:
+        - BearerAuth: []
+      summary: Get user booking history
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+      responses:
+        '200':
+          description: Paginated booking history
+
+  /bookings/{id}:
+    get:
+      security:
+        - BearerAuth: []
+      summary: Get booking details (Attendee or Event Organizer)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Booking details returned
+        '403':
+          description: Forbidden - Not booking owner or event organizer
+
+  /bookings/{id}/cancel:
+    post:
+      security:
+        - BearerAuth: []
+      summary: Cancel booking (Attendee owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Booking cancelled and seats returned to event
+        '400':
+          description: Cancellation window expired or already cancelled
+        '403':
+          description: Forbidden - Not booking owner

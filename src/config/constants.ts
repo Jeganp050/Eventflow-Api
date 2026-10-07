@@ -1,0 +1,22 @@
+export const CONSTANTS = {
+  PAGINATION: {
+    DEFAULT_PAGE: 1,
+    DEFAULT_LIMIT: 10,
+    MAX_LIMIT: 50,
+  },
+  BOOKING: {
+    DEFAULT_MAX_TICKETS: 5,
+    DEFAULT_CANCELLATION_DEADLINE_HOURS: 2,
+  },
+  AUTH: {
+    BCRYPT_SALT_ROUNDS: 10,
+  },
+  CACHE: {
+    DEFAULT_TTL_SECONDS: 60,
+    EVENT_LIST_KEY_PREFIX: 'cache:events:list',
+    EVENT_DETAIL_KEY_PREFIX: 'cache:events:detail',
+  },
+  IDEMPOTENCY: {
+    EXPIRATION_HOURS: 24,
+  },
+};
