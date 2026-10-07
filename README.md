@@ -2,8 +2,6 @@
 
 > Production-grade RESTful Event Ticketing Platform Backend built with Node.js, Express, TypeScript, PostgreSQL, and Prisma.
 
----
-
 ## 📌 Table of Contents
 1. [Project Overview](#-project-overview)
 2. [Key Features](#-key-features)
@@ -508,5 +506,6 @@ The raw OpenAPI 3.0 specification is located in `docs/openapi.yaml`.
    - Rather than making Redis a hard failure dependency for local developer evaluations, the cache adapter automatically falls back to an in-memory TTL cache if Redis is not reachable.
 3. **Structured Domain Error Hierarchy**:
    - `AppError` provides machine-readable `ErrorCode` enums while preventing internal SQL details or stack traces from ever leaking to API clients in production.
-#   E v e n t f l o w - A p i  
+#   E v e n t f l o w - A p i 
+ 
  
